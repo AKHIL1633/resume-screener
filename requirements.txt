@@ -1,0 +1,29 @@
+# ── Core framework ────────────────────────────────────────────────────────────
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.36
+aiosqlite==0.20.0          # async SQLite driver (dev/test)
+alembic==1.14.0            # schema migrations
+# cx-Oracle==8.3.0          # uncomment for Oracle DB
+# oracledb==2.4.1           # modern Oracle driver alternative
+
+# ── Validation & settings ─────────────────────────────────────────────────────
+pydantic==2.10.3
+pydantic-settings==2.6.1
+pydantic[email]            # EmailStr support
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0   # JWT encoding / decoding
+passlib[bcrypt]==1.7.4             # password hashing
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.24.0
+httpx==0.28.1              # async test client for FastAPI
+anyio==4.7.0
+
+# ── Code quality (optional, used in CI lint job) ──────────────────────────────
+# ruff==0.8.4
+# mypy==1.13.0
