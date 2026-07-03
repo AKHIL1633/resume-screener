@@ -63,7 +63,11 @@ def test_underexperienced_candidate():
     j = _job(["python"], [], min_exp=5.0)
     result = strategy.score(c, j)
     assert result.experience_score == pytest.approx(20.0)
-    assert result.total_score < 50
+    # Experience (20% weight) = 20*0.2=4; required(100*0.5=50) + preferred(100*0.2=20) + keyword(50*0.1=5) = 79
+    assert result.total_score == pytest.approx(79.0)
+    # But underexperienced candidate scores lower than a qualified peer
+    qualified = _candidate(["python"], 5.0)
+    assert result.total_score < strategy.score(qualified, j).total_score
 
 
 def test_overqualified_slight_penalty():

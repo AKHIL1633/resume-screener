@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { getMe, login as apiLogin } from '../api/auth'
+import { getMe, login as apiLogin, logoutApi } from '../api/auth'
 import type { User } from '../types'
 
 interface AuthContextType {
@@ -20,19 +20,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) { setLoading(false); return }
     getMe()
       .then(setUser)
-      .catch(() => localStorage.removeItem('token'))
+      .catch(() => {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refresh_token')
+      })
       .finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string) => {
-    const { access_token } = await apiLogin(email, password)
+    const { access_token, refresh_token } = await apiLogin(email, password)
     localStorage.setItem('token', access_token)
+    localStorage.setItem('refresh_token', refresh_token)
     const me = await getMe()
     setUser(me)
   }
 
   const logout = () => {
+    const rt = localStorage.getItem('refresh_token')
+    if (rt) logoutApi(rt).catch(() => {})  // fire-and-forget; revoke on server
     localStorage.removeItem('token')
+    localStorage.removeItem('refresh_token')
     setUser(null)
   }
 

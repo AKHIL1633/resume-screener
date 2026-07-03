@@ -1,5 +1,9 @@
 from functools import lru_cache
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+_INSECURE_DEFAULT = "change-me-generate-with-openssl-rand-hex-32"
 
 
 class Settings(BaseSettings):
@@ -14,10 +18,18 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     max_page_size: int = 100
 
-    # JWT — override SECRET_KEY with a long random string in production
-    secret_key: str = "change-me-generate-with-openssl-rand-hex-32"
+    # JWT
+    secret_key: str = _INSECURE_DEFAULT
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 480  # 8 hours
+    access_token_expire_minutes: int = 30   # short-lived
+    refresh_token_expire_days: int = 7
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters")
+        return v
 
     class Config:
         env_file = ".env"

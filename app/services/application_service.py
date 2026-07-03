@@ -45,7 +45,13 @@ class ApplicationService(BaseService[Application]):
         )
         self.db.add(application)
         await self.db.commit()
-        await self.db.refresh(application)
+        # Re-fetch with relationships eagerly loaded so serialization works
+        result = await self.db.execute(
+            select(Application)
+            .options(selectinload(Application.candidate), selectinload(Application.job))
+            .where(Application.id == application.id)
+        )
+        application = result.scalar_one()
         logger.info(
             "Application created id=%d candidate=%d job=%d score=%.1f",
             application.id, data.candidate_id, data.job_id, score_result.total_score,
@@ -65,8 +71,12 @@ class ApplicationService(BaseService[Application]):
             setattr(app, field, value)
 
         await self.db.commit()
-        await self.db.refresh(app)
-        return app
+        result = await self.db.execute(
+            select(Application)
+            .options(selectinload(Application.candidate), selectinload(Application.job))
+            .where(Application.id == id)
+        )
+        return result.scalar_one()
 
     # ------------------------------------------------------------------
     # Ranked listing for a job

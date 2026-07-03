@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DuplicateException, NotFoundException
@@ -54,15 +54,16 @@ class CandidateService(BaseService[Candidate]):
             query = query.where(Candidate.years_of_experience >= min_experience)
             count_query = count_query.where(Candidate.years_of_experience >= min_experience)
 
+        # DB-level JSON text search: cast the JSON column to string and look for
+        # the quoted skill name (e.g. `"python"`) to avoid false-prefix matches.
+        if skills:
+            for skill in skills:
+                pattern = f'%"{skill.lower()}"%'
+                condition = cast(Candidate.skills, String).ilike(pattern)
+                query = query.where(condition)
+                count_query = count_query.where(condition)
+
         total: int = (await self.db.execute(count_query)).scalar_one()
         offset = (page - 1) * page_size
         rows = await self.db.execute(query.offset(offset).limit(page_size))
-        candidates = list(rows.scalars().all())
-
-        # In-process skill filter (for SQLite; on Oracle use JSON_EXISTS in the query)
-        if skills:
-            skill_set = {s.lower() for s in skills}
-            candidates = [c for c in candidates if skill_set & set(c.skills or [])]
-            total = len(candidates)
-
-        return candidates, total
+        return list(rows.scalars().all()), total

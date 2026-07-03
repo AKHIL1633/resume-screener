@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, ChevronRight, Briefcase, Trash2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { getJobs, createJob, deleteJob } from '../api/jobs'
 import Modal from '../components/Modal'
 import SkillTag from '../components/SkillTag'
@@ -35,8 +36,8 @@ function JobForm({ onClose }: { onClose: () => void }) {
       max_experience_years: form.max_experience_years ? Number(form.max_experience_years) : undefined,
       status: form.status,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); onClose() },
-    onError: () => setError('Failed to create job. Check all fields.'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); toast.success('Job created!'); onClose() },
+    onError: () => { setError('Failed to create job. Check all fields.'); toast.error('Failed to create job') },
   })
 
   const set = (f: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -115,7 +116,8 @@ export default function Jobs() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteJob,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); toast.success('Job deleted') },
+    onError: () => toast.error('Failed to delete job'),
   })
 
   return (

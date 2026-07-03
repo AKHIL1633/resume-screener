@@ -38,10 +38,10 @@ async def test_active_jobs_endpoint(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_delete_job(client: AsyncClient):
-    jid = (await client.post("/api/v1/jobs/", json=job_payload())).json()["id"]
-    assert (await client.delete(f"/api/v1/jobs/{jid}")).status_code == 204
-    assert (await client.get(f"/api/v1/jobs/{jid}")).status_code == 404
+async def test_delete_job(admin_client: AsyncClient):
+    jid = (await admin_client.post("/api/v1/jobs/", json=job_payload())).json()["id"]
+    assert (await admin_client.delete(f"/api/v1/jobs/{jid}")).status_code == 204
+    assert (await admin_client.get(f"/api/v1/jobs/{jid}")).status_code == 404
 
 
 @pytest.mark.asyncio

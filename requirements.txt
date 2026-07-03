@@ -17,12 +17,16 @@ pydantic[email]            # EmailStr support
 # ── Auth ──────────────────────────────────────────────────────────────────────
 python-jose[cryptography]==3.3.0   # JWT encoding / decoding
 passlib[bcrypt]==1.7.4             # password hashing
+bcrypt==3.2.2                      # passlib 1.7.4 is incompatible with bcrypt>=4.0
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 pytest==8.3.4
 pytest-asyncio==0.24.0
 httpx==0.28.1              # async test client for FastAPI
 anyio==4.7.0
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+slowapi==0.1.9
 
 # ── Code quality (optional, used in CI lint job) ──────────────────────────────
 # ruff==0.8.4

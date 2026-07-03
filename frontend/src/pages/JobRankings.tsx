@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Zap, ChevronDown, ChevronUp } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { getJob } from '../api/jobs'
 import { getRankedCandidates, updateApplicationStatus, bulkScore } from '../api/applications'
 import ScoreBar from '../components/ScoreBar'
@@ -64,12 +65,14 @@ export default function JobRankings() {
   const statusMutation = useMutation({
     mutationFn: ({ appId, status }: { appId: number; status: Application['status'] }) =>
       updateApplicationStatus(appId, status),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['rankings', id] }),
+    onSuccess: (_, { status }) => { qc.invalidateQueries({ queryKey: ['rankings', id] }); toast.success(`Status updated to ${status}`) },
+    onError: () => toast.error('Failed to update status'),
   })
 
   const bulkMutation = useMutation({
     mutationFn: () => bulkScore(id),
-    onSuccess: () => setTimeout(() => qc.invalidateQueries({ queryKey: ['rankings', id] }), 1500),
+    onSuccess: () => { toast.success('Re-scoring started in background'); setTimeout(() => qc.invalidateQueries({ queryKey: ['rankings', id] }), 1500) },
+    onError: () => toast.error('Failed to trigger re-score'),
   })
 
   return (

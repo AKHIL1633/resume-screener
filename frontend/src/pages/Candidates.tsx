@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Trash2, ExternalLink } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { getCandidates, createCandidate, deleteCandidate } from '../api/candidates'
 import Modal from '../components/Modal'
 import SkillTag from '../components/SkillTag'
@@ -27,8 +28,8 @@ function AddCandidateForm({ onClose }: { onClose: () => void }) {
       resume_text: form.resume_text || undefined,
       linkedin_url: form.linkedin_url || undefined,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['candidates'] }); onClose() },
-    onError: () => setError('Failed to add candidate. Email may already exist.'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['candidates'] }); toast.success('Candidate added!'); onClose() },
+    onError: () => { setError('Failed to add candidate. Email may already exist.'); toast.error('Failed to add candidate') },
   })
 
   const set = (f: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -106,7 +107,8 @@ export default function Candidates() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteCandidate,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['candidates'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['candidates'] }); toast.success('Candidate removed') },
+    onError: () => toast.error('Failed to delete candidate'),
   })
 
   const filtered = data?.candidates.filter((c) =>

@@ -49,12 +49,12 @@ async def test_update_candidate(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_delete_candidate(client: AsyncClient):
-    create_res = await client.post("/api/v1/candidates/", json=candidate_payload(email="del@example.com"))
+async def test_delete_candidate(admin_client: AsyncClient):
+    create_res = await admin_client.post("/api/v1/candidates/", json=candidate_payload(email="del@example.com"))
     cid = create_res.json()["id"]
 
-    assert (await client.delete(f"/api/v1/candidates/{cid}")).status_code == 204
-    assert (await client.get(f"/api/v1/candidates/{cid}")).status_code == 404
+    assert (await admin_client.delete(f"/api/v1/candidates/{cid}")).status_code == 204
+    assert (await admin_client.get(f"/api/v1/candidates/{cid}")).status_code == 404
 
 
 @pytest.mark.asyncio
