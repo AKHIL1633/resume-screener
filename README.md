@@ -12,15 +12,22 @@ A production-quality Python backend that automatically scores and ranks candidat
 
 ## Features
 
-- **JWT Authentication** — register, login, bearer token, role-based access (admin / recruiter / viewer)
+- **JWT Authentication** — register, login, access + refresh token pair, role-based access (admin / recruiter / viewer)
+- **Refresh token rotation** — opaque tokens hashed in DB, rotated on every use, server-side logout
+- **Rate limiting** — 200 requests/minute per IP via `slowapi`
+- **Request correlation IDs** — every response carries `X-Request-ID` for end-to-end tracing
 - **Candidate management** — create profiles with skills, experience, resume text, LinkedIn
 - **Job postings** — required & preferred skills, experience range, department, status lifecycle
 - **Automatic scoring** — every application is scored instantly on submission
 - **Ranked leaderboard** — `GET /applications/job/{id}` returns candidates ordered by match score
 - **Bulk scoring** — score all candidates against a job in one async background call
+- **DB-level skill search** — candidate search filters by skill at the database layer (no post-filtering in Python)
 - **Alembic migrations** — schema versioned in git, zero `create_all()` in production
+- **React frontend** — TypeScript + Vite + Tailwind, with toast notifications and auto-refresh-on-401
 - **Docker ready** — multi-stage build, non-root user, healthcheck, `docker-compose up` in one step
 - **CI/CD** — GitHub Actions runs tests on Python 3.11 & 3.12, lints with ruff, verifies Docker build
+- **Makefile** — `make run`, `make test`, `make migrate`, `make docker-up` shortcuts
+- **Pre-commit hooks** — ruff lint + format enforced before every commit
 
 ---
 
@@ -47,28 +54,28 @@ ScoringServiceFactory.register("semantic", MySemanticScorer)
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  FastAPI Application                 │
-│                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐ │
-│  │  /auth   │  │/candidates│  │ /jobs /applications│ │
-│  └────┬─────┘  └─────┬────┘  └────────┬──────────┘ │
-│       │              │                │             │
-│  ─────────────────── Depends() ───────────────────  │
-│       │  get_current_user / get_current_admin       │
-│       ▼              ▼                ▼             │
-│  ┌──────────────────────────────────────────────┐   │
-│  │              Service Layer                   │   │
-│  │  AuthService │ CandidateService │ JobService │   │
-│  │              │ ApplicationService            │   │
-│  │              │ ScoringService (Strategy)     │   │
-│  └──────────────────────┬───────────────────────┘   │
-│                         │ async SQLAlchemy 2.0       │
-│  ┌──────────────────────▼───────────────────────┐   │
-│  │           ORM Models (Base + Mixins)         │   │
-│  │   User │ Candidate │ Job │ Application       │   │
-│  └──────────────────────┬───────────────────────┘   │
-└─────────────────────────┼───────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                  FastAPI Application                     │
+│                                                         │
+│  ┌──────────┐  ┌───────────┐  ┌──────────────────────┐ │
+│  │  /auth   │  │/candidates│  │ /jobs  /applications  │ │
+│  └────┬─────┘  └─────┬─────┘  └──────────┬───────────┘ │
+│       │              │                    │             │
+│  ─────────────── Depends() ───────────────────────────  │
+│       │  get_current_user / get_current_admin           │
+│       ▼              ▼                    ▼             │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │                  Service Layer                     │ │
+│  │  AuthService │ CandidateService │ JobService       │ │
+│  │              │ ApplicationService                  │ │
+│  │              │ ScoringService (Strategy + Factory) │ │
+│  └──────────────────────┬─────────────────────────────┘ │
+│                         │ async SQLAlchemy 2.0           │
+│  ┌──────────────────────▼─────────────────────────────┐ │
+│  │        ORM Models (Base + TimestampMixin)          │ │
+│  │  User │ RefreshToken │ Candidate │ Job │ Application│ │
+│  └──────────────────────┬─────────────────────────────┘ │
+└─────────────────────────┼───────────────────────────────┘
                           │
               ┌───────────▼────────────┐
               │   SQLite (dev/test)    │
@@ -85,13 +92,16 @@ ScoringServiceFactory.register("semantic", MySemanticScorer)
 | Framework | FastAPI 0.115 |
 | ORM | SQLAlchemy 2.0 (async) |
 | Validation | Pydantic v2 |
-| Auth | JWT via `python-jose` + `passlib[bcrypt]` |
+| Auth | JWT (`python-jose`) + `passlib[bcrypt]` + opaque refresh tokens |
+| Rate limiting | `slowapi` |
 | DB (dev) | SQLite + `aiosqlite` |
 | DB (prod) | Oracle DB via `cx_Oracle` / `oracledb` |
-| Migrations | Alembic (async-compatible) |
-| Testing | pytest-asyncio + httpx |
-| Container | Docker (multi-stage) + docker-compose |
-| CI | GitHub Actions |
+| Migrations | Alembic |
+| Testing | pytest-asyncio + httpx (35 tests) |
+| Container | Docker multi-stage + docker-compose |
+| CI | GitHub Actions (3.11 + 3.12 matrix) |
+| Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
+| Frontend data | TanStack Query + Axios |
 
 ---
 
@@ -100,38 +110,54 @@ ScoringServiceFactory.register("semantic", MySemanticScorer)
 ```
 resume_screener/
 ├── app/
-│   ├── main.py                 # App factory, middleware, lifespan
-│   ├── config.py               # Pydantic BaseSettings (.env driven)
+│   ├── main.py                 # App factory, rate limiter, request ID middleware, lifespan
+│   ├── config.py               # Pydantic BaseSettings (.env driven, SECRET_KEY validated)
 │   ├── database.py             # Async engine + get_db dependency
 │   ├── api/v1/
-│   │   ├── auth.py             # POST /register  POST /login  GET /me
+│   │   ├── auth.py             # /register  /login  /refresh  /logout  /me
 │   │   ├── candidates.py       # CRUD for candidate profiles
 │   │   ├── jobs.py             # CRUD for job postings
 │   │   └── applications.py     # Apply, rank, bulk-score
-│   ├── models/                 # SQLAlchemy ORM (User, Candidate, Job, Application)
+│   ├── models/
+│   │   ├── user.py             # User + UserRole enum
+│   │   ├── token.py            # RefreshToken (hashed, expires_at, is_revoked)
+│   │   ├── candidate.py
+│   │   ├── job.py
+│   │   └── application.py
 │   ├── schemas/                # Pydantic request/response schemas
 │   ├── services/
 │   │   ├── base.py             # Generic BaseService[T] — DRY CRUD
 │   │   ├── scoring_service.py  # Strategy + Factory pattern
-│   │   ├── auth_service.py
+│   │   ├── auth_service.py     # register, login, refresh, logout
 │   │   ├── candidate_service.py
 │   │   ├── job_service.py
 │   │   └── application_service.py
 │   └── core/
-│       ├── security.py         # JWT encode/decode, bcrypt
+│       ├── security.py         # JWT encode/decode, bcrypt, refresh token helpers
 │       ├── dependencies.py     # get_current_user, get_current_admin
 │       ├── exceptions.py       # Typed exception hierarchy
 │       └── logging_config.py   # Structured logging
-├── alembic/                    # DB migrations
+├── alembic/
 │   └── versions/
-│       └── 0001_initial_schema.py
-├── tests/                      # 50+ async tests
+│       ├── 0001_initial_schema.py
+│       └── 0002_refresh_tokens.py
+├── tests/                      # 35 async tests
 │   ├── conftest.py             # Fixtures, auth bypass for unit tests
 │   ├── test_auth.py
 │   ├── test_candidates.py
 │   ├── test_jobs.py
 │   ├── test_applications.py
 │   └── test_scoring.py         # Pure unit tests (no DB)
+├── frontend/
+│   ├── src/
+│   │   ├── api/                # Axios client (auto-refresh on 401), auth.ts
+│   │   ├── components/         # Modal, SkillTag, ScoreBar, Pagination, ...
+│   │   ├── context/            # AuthContext (login, logout, refresh token)
+│   │   ├── pages/              # Dashboard, Jobs, Candidates, JobRankings
+│   │   └── types/              # Shared TypeScript interfaces
+│   └── nginx.conf              # SPA routing + /api proxy
+├── Makefile                    # Developer shortcuts
+├── .pre-commit-config.yaml     # ruff lint/format + standard hooks
 ├── Dockerfile                  # Multi-stage build
 ├── docker-compose.yml
 ├── alembic.ini
@@ -143,41 +169,67 @@ resume_screener/
 
 ## Quick Start
 
-### Local development
+### Option 1 — Make (recommended)
 
 ```bash
-# 1. Clone and enter the project
 git clone https://github.com/AKHIL1633/resume-screener.git
 cd resume-screener
-
-# 2. Create virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Configure environment
-cp .env.example .env
-# Edit .env — at minimum change SECRET_KEY
-
-# 5. Run database migrations
-alembic upgrade head
-
-# 6. Start the server
-uvicorn app.main:app --reload
+cp .env.example .env          # edit SECRET_KEY at minimum
+make install                  # pip install -r requirements.txt
+make migrate                  # alembic upgrade head
+make run                      # uvicorn on :8000
 ```
 
 Open **http://localhost:8000/docs** for the interactive Swagger UI.
 
-### Docker (one command)
+### Option 2 — Manual
+
+```bash
+python -m venv .venv
+source .venv/bin/activate     # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+### Option 3 — Docker
 
 ```bash
 cp .env.example .env
-docker-compose up --build
+make docker-up                # or: docker-compose up --build
 ```
 
-API available at **http://localhost:8000** — data persists in a named Docker volume.
+API at **http://localhost:8000**, frontend at **http://localhost:3000**.
+
+### Frontend development
+
+```bash
+make frontend-dev             # installs deps + runs Vite dev server on :5173
+```
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+```env
+# Required — must be ≥ 32 characters
+SECRET_KEY=your-very-secret-key-generated-with-openssl-rand-hex-32
+
+# Optional overrides (defaults shown)
+DATABASE_URL=sqlite+aiosqlite:///./resume_screener.db
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+LOG_LEVEL=INFO
+DEBUG=false
+```
+
+Generate a secure key:
+```bash
+openssl rand -hex 32
+```
 
 ---
 
@@ -188,7 +240,9 @@ API available at **http://localhost:8000** — data persists in a named Docker v
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | POST | `/api/v1/auth/register` | — | Create user account |
-| POST | `/api/v1/auth/login` | — | Get JWT bearer token |
+| POST | `/api/v1/auth/login` | — | Get access + refresh token |
+| POST | `/api/v1/auth/refresh` | — | Rotate refresh token |
+| POST | `/api/v1/auth/logout` | — | Revoke refresh token |
 | GET | `/api/v1/auth/me` | Bearer | Current user info |
 
 ### Candidates
@@ -217,7 +271,7 @@ API available at **http://localhost:8000** — data persists in a named Docker v
 |---|---|---|---|
 | POST | `/api/v1/applications/` | Recruiter+ | Apply + auto-score |
 | GET | `/api/v1/applications/job/{id}` | Recruiter+ | **Ranked candidates for a job** |
-| PATCH | `/api/v1/applications/{id}` | Recruiter+ | Update status (shortlisted / hired / …) |
+| PATCH | `/api/v1/applications/{id}` | Recruiter+ | Update status |
 | DELETE | `/api/v1/applications/{id}` | **Admin** | Delete application |
 | POST | `/api/v1/applications/bulk-score` | Recruiter+ | Score all candidates async (202) |
 
@@ -231,25 +285,23 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 
 TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"hr@company.com","password":"Str0ng!Pass"}' | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+  -d '{"email":"hr@company.com","password":"Str0ng!Pass"}' \
+  | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
 # 2. Create a job
-JOB=$(curl -s -X POST http://localhost:8000/api/v1/jobs/ \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Python Backend Developer","description":"FastAPI SQLAlchemy async Python Oracle","required_skills":["python","fastapi","sqlalchemy"],"preferred_skills":["oracle","docker"],"min_experience_years":3}')
-JOB_ID=$(echo $JOB | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
+JOB_ID=$(curl -s -X POST http://localhost:8000/api/v1/jobs/ \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"Python Backend Developer","description":"FastAPI SQLAlchemy async Python Oracle","required_skills":["python","fastapi","sqlalchemy"],"preferred_skills":["oracle","docker"],"min_experience_years":3}' \
+  | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
 
 # 3. Add a candidate and apply
-CAND=$(curl -s -X POST http://localhost:8000/api/v1/candidates/ \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Alice","email":"alice@dev.com","skills":["python","fastapi","sqlalchemy","docker"],"years_of_experience":5}')
-CAND_ID=$(echo $CAND | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
+CAND_ID=$(curl -s -X POST http://localhost:8000/api/v1/candidates/ \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@dev.com","skills":["python","fastapi","sqlalchemy","docker"],"years_of_experience":5}' \
+  | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
 
 curl -X POST http://localhost:8000/api/v1/applications/ \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "{\"candidate_id\":$CAND_ID,\"job_id\":$JOB_ID}"
 
 # 4. Get ranked candidates
@@ -262,12 +314,12 @@ curl "http://localhost:8000/api/v1/applications/job/$JOB_ID" \
 ## Running Tests
 
 ```bash
-pytest                    # run all tests
-pytest tests/test_scoring.py -v   # scoring unit tests only (no DB)
-pytest --tb=short -q      # compact output
+make test                              # all 35 tests
+pytest tests/test_scoring.py -v       # unit tests only (no DB)
+pytest --tb=short -q                   # compact output
 ```
 
-Tests use an in-memory SQLite DB and bypass the auth dependency via `dependency_overrides` — no real tokens needed.
+Tests use an in-memory SQLite DB and bypass auth via `dependency_overrides` — no real tokens needed.
 
 ---
 
