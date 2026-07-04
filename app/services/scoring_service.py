@@ -168,7 +168,7 @@ class ScoringService:
 
     def score_candidate(self, candidate: Candidate, job: Job) -> ScoreResult:
         result = self._strategy.score(candidate, job)
-        logger.debug("score candidate=%d job=%d → %.1f", candidate.id, job.id, result.total_score)
+        logger.debug("score candidate=%d job=%d -> %.1f", candidate.id, job.id, result.total_score)
         return result
 
     def rank_candidates(self, candidates: list[Candidate], job: Job) -> list[tuple[Candidate, ScoreResult]]:

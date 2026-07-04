@@ -38,7 +38,7 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description=(
-        "**ResumeIQ** — AI-powered resume screening and candidate ranking system.\n\n"
+        "**ResumeIQ** — automated resume screening and candidate ranking system.\n\n"
         "Automatically scores candidates against job requirements using a weighted "
         "algorithm that considers skills, experience, and keyword density."
     ),
@@ -69,7 +69,7 @@ async def request_logging_middleware(request: Request, call_next):
     elapsed_ms = (time.perf_counter() - start) * 1000
     response.headers["X-Request-ID"] = request_id
     logger.info(
-        "%s %s → %d (%.1f ms) [%s]",
+        "%s %s -> %d (%.1f ms) [%s]",
         request.method,
         request.url.path,
         response.status_code,

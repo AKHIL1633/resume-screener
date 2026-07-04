@@ -16,6 +16,9 @@ venv/
 env/
 ENV/
 
+# Node / frontend
+frontend/node_modules/
+
 # Environment & secrets
 .env
 *.env.local
