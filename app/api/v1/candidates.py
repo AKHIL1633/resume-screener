@@ -16,7 +16,9 @@ from app.services.candidate_service import CandidateService
 router = APIRouter(prefix="/candidates", tags=["Candidates"])
 
 
-@router.post("/", response_model=CandidateResponse, status_code=201, summary="Register a new candidate")
+@router.post(
+    "/", response_model=CandidateResponse, status_code=201, summary="Register a new candidate"
+)
 async def create_candidate(
     data: CandidateCreate,
     db: AsyncSession = Depends(get_db),
@@ -44,7 +46,9 @@ async def list_candidates(
 
 
 @router.get("/{candidate_id}", response_model=CandidateResponse, summary="Get a candidate by ID")
-async def get_candidate(candidate_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def get_candidate(
+    candidate_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)
+):
     candidate = await CandidateService(db).get_by_id(candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
@@ -52,7 +56,12 @@ async def get_candidate(candidate_id: int, db: AsyncSession = Depends(get_db), _
 
 
 @router.put("/{candidate_id}", response_model=CandidateResponse, summary="Update candidate profile")
-async def update_candidate(candidate_id: int, data: CandidateUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_candidate(
+    candidate_id: int,
+    data: CandidateUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     try:
         return await CandidateService(db).update(candidate_id, data)
     except NotFoundException as exc:
@@ -60,7 +69,9 @@ async def update_candidate(candidate_id: int, data: CandidateUpdate, db: AsyncSe
 
 
 @router.delete("/{candidate_id}", status_code=204, summary="Delete a candidate (admin only)")
-async def delete_candidate(candidate_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+async def delete_candidate(
+    candidate_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)
+):
     deleted = await CandidateService(db).delete(candidate_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")

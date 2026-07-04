@@ -68,10 +68,14 @@ class AuthService:
         db_token: RefreshToken | None = result.scalar_one_or_none()
 
         if not db_token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+            )
 
         if db_token.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
+            )
 
         # Rotate: revoke old token
         db_token.is_revoked = True

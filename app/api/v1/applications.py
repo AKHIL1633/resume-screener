@@ -18,8 +18,12 @@ from app.services.application_service import ApplicationService
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
 
-@router.post("/", response_model=ApplicationResponse, status_code=201, summary="Submit an application")
-async def create_application(data: ApplicationCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+@router.post(
+    "/", response_model=ApplicationResponse, status_code=201, summary="Submit an application"
+)
+async def create_application(
+    data: ApplicationCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)
+):
     try:
         return await ApplicationService(db).create(data)
     except NotFoundException as exc:
@@ -44,12 +48,19 @@ async def get_ranked_candidates(
     applications, total = await ApplicationService(db).get_ranked_for_job(
         job_id=job_id, min_score=min_score, page=page, page_size=page_size
     )
-    return ApplicationListResponse(total=total, page=page, page_size=page_size, applications=applications)
+    return ApplicationListResponse(
+        total=total, page=page, page_size=page_size, applications=applications
+    )
 
 
-@router.patch("/{application_id}", response_model=ApplicationResponse, summary="Update application status")
+@router.patch(
+    "/{application_id}", response_model=ApplicationResponse, summary="Update application status"
+)
 async def update_application(
-    application_id: int, data: ApplicationUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)
+    application_id: int,
+    data: ApplicationUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
 ):
     try:
         return await ApplicationService(db).update_status(application_id, data)
@@ -58,7 +69,9 @@ async def update_application(
 
 
 @router.delete("/{application_id}", status_code=204, summary="Delete an application (admin only)")
-async def delete_application(application_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+async def delete_application(
+    application_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)
+):
     deleted = await ApplicationService(db).delete(application_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Application {application_id} not found")

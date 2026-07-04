@@ -1,4 +1,3 @@
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -11,8 +10,16 @@ from app.models.user import User, UserRole
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_resume_iq.db"
 
 # A mock user returned by the overridden auth dependency in most tests
-_MOCK_USER = User(id=1, email="recruiter@test.com", full_name="Test Recruiter", role=UserRole.RECRUITER, is_active=True)
-_MOCK_ADMIN = User(id=2, email="admin@test.com", full_name="Test Admin", role=UserRole.ADMIN, is_active=True)
+_MOCK_USER = User(
+    id=1,
+    email="recruiter@test.com",
+    full_name="Test Recruiter",
+    role=UserRole.RECRUITER,
+    is_active=True,
+)
+_MOCK_ADMIN = User(
+    id=2, email="admin@test.com", full_name="Test Admin", role=UserRole.ADMIN, is_active=True
+)
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -48,6 +55,7 @@ async def client(db: AsyncSession):
 async def admin_client(db: AsyncSession):
     """Authenticated as an admin — used for DELETE endpoint tests."""
     from app.core.dependencies import get_current_admin
+
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: _MOCK_ADMIN
     app.dependency_overrides[get_current_admin] = lambda: _MOCK_ADMIN
@@ -68,6 +76,7 @@ async def unauthed_client(db: AsyncSession):
 # ------------------------------------------------------------------
 # Shared payload factories
 # ------------------------------------------------------------------
+
 
 def candidate_payload(**overrides) -> dict:
     base = {

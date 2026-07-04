@@ -63,7 +63,8 @@ def test_underexperienced_candidate():
     j = _job(["python"], [], min_exp=5.0)
     result = strategy.score(c, j)
     assert result.experience_score == pytest.approx(20.0)
-    # Experience (20% weight) = 20*0.2=4; required(100*0.5=50) + preferred(100*0.2=20) + keyword(50*0.1=5) = 79
+    # Experience (20% weight) = 20*0.2=4
+    # required(100*0.5=50) + preferred(100*0.2=20) + keyword(50*0.1=5) = 79
     assert result.total_score == pytest.approx(79.0)
     # But underexperienced candidate scores lower than a qualified peer
     qualified = _candidate(["python"], 5.0)
@@ -121,6 +122,7 @@ def test_rank_candidates_ordered():
     j = _job(["python", "fastapi", "sqlalchemy"], [], min_exp=3.0)
 
     from app.services.scoring_service import ScoringService
+
     svc = ScoringService()
     ranked = svc.rank_candidates([weak, strong], j)
 

@@ -66,7 +66,9 @@ async def test_me_endpoint_with_token(unauthed_client: AsyncClient):
     )
     token = login_res.json()["access_token"]
 
-    me_res = await unauthed_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    me_res = await unauthed_client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
     assert me_res.status_code == 200
     assert me_res.json()["email"] == "eve@test.com"
 

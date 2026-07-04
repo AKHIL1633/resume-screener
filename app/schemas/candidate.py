@@ -9,7 +9,9 @@ class CandidateBase(BaseModel):
     email: EmailStr
     phone: Optional[str] = Field(None, max_length=30, examples=["+91-9876543210"])
     years_of_experience: float = Field(0.0, ge=0, le=50, examples=[5.0])
-    education: Optional[str] = Field(None, max_length=500, examples=["B.Tech Computer Science, IIT Delhi"])
+    education: Optional[str] = Field(
+        None, max_length=500, examples=["B.Tech Computer Science, IIT Delhi"]
+    )
     linkedin_url: Optional[str] = Field(None, examples=["https://linkedin.com/in/alice"])
 
 

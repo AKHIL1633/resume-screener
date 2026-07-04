@@ -2,7 +2,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.config import get_settings
@@ -14,6 +14,7 @@ _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ── Password ──────────────────────────────────────────────────────────────────
 
+
 def hash_password(plain: str) -> str:
     return _pwd_context.hash(plain)
 
@@ -23,6 +24,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 # ── Access token (JWT, short-lived) ───────────────────────────────────────────
+
 
 def create_access_token(subject: str, role: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
@@ -36,6 +38,7 @@ def decode_token(token: str) -> dict:
 
 
 # ── Refresh token (opaque, long-lived, stored in DB) ─────────────────────────
+
 
 def generate_refresh_token() -> str:
     """Return a cryptographically random opaque token string."""

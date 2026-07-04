@@ -49,7 +49,9 @@ async def test_ranked_candidates_for_job(client: AsyncClient):
     c1 = await _create_candidate(client, "rank1@example.com")
     # Weak match
     c2 = await _create_candidate(client, "rank2@example.com")
-    await client.put(f"/api/v1/candidates/{c2}", json={"skills": ["java"], "years_of_experience": 1.0})
+    await client.put(
+        f"/api/v1/candidates/{c2}", json={"skills": ["java"], "years_of_experience": 1.0}
+    )
 
     await client.post("/api/v1/applications/", json={"candidate_id": c1, "job_id": jid})
     await client.post("/api/v1/applications/", json={"candidate_id": c2, "job_id": jid})
@@ -66,7 +68,9 @@ async def test_ranked_candidates_for_job(client: AsyncClient):
 async def test_update_application_status(client: AsyncClient):
     cid = await _create_candidate(client, "status@example.com")
     jid = await _create_job(client)
-    aid = (await client.post("/api/v1/applications/", json={"candidate_id": cid, "job_id": jid})).json()["id"]
+    aid = (
+        await client.post("/api/v1/applications/", json={"candidate_id": cid, "job_id": jid})
+    ).json()["id"]
 
     res = await client.patch(f"/api/v1/applications/{aid}", json={"status": "shortlisted"})
     assert res.status_code == 200

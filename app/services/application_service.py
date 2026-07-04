@@ -1,6 +1,6 @@
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import DuplicateException, NotFoundException
 from app.core.logging_config import logger
@@ -32,7 +32,9 @@ class ApplicationService(BaseService[Application]):
 
         existing = await self._get_existing(data.candidate_id, data.job_id)
         if existing:
-            raise DuplicateException("Application", "candidate_id+job_id", f"{data.candidate_id}+{data.job_id}")
+            raise DuplicateException(
+                "Application", "candidate_id+job_id", f"{data.candidate_id}+{data.job_id}"
+            )
 
         score_result = self._scoring.score_candidate(candidate, job)
 
@@ -54,7 +56,10 @@ class ApplicationService(BaseService[Application]):
         application = result.scalar_one()
         logger.info(
             "Application created id=%d candidate=%d job=%d score=%.1f",
-            application.id, data.candidate_id, data.job_id, score_result.total_score,
+            application.id,
+            data.candidate_id,
+            data.job_id,
+            score_result.total_score,
         )
         return application
 
@@ -117,7 +122,9 @@ class ApplicationService(BaseService[Application]):
             raise NotFoundException("Job", data.job_id)
 
         if data.candidate_ids:
-            rows = await self.db.execute(select(Candidate).where(Candidate.id.in_(data.candidate_ids)))
+            rows = await self.db.execute(
+                select(Candidate).where(Candidate.id.in_(data.candidate_ids))
+            )
         else:
             rows = await self.db.execute(select(Candidate))
         candidates = list(rows.scalars().all())
@@ -130,12 +137,14 @@ class ApplicationService(BaseService[Application]):
                 app.match_score = score_result.total_score
                 app.score_breakdown = score_result.to_dict()
             else:
-                self.db.add(Application(
-                    candidate_id=candidate.id,
-                    job_id=data.job_id,
-                    match_score=score_result.total_score,
-                    score_breakdown=score_result.to_dict(),
-                ))
+                self.db.add(
+                    Application(
+                        candidate_id=candidate.id,
+                        job_id=data.job_id,
+                        match_score=score_result.total_score,
+                        score_breakdown=score_result.to_dict(),
+                    )
+                )
 
         await self.db.commit()
         logger.info("Bulk score complete: %d candidates for job=%d", len(ranked), data.job_id)
