@@ -1,12 +1,14 @@
 from functools import lru_cache
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _INSECURE_DEFAULT = "change-me-generate-with-openssl-rand-hex-32"
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     app_name: str = "ResumeIQ"
     app_version: str = "1.0.0"
     debug: bool = False
@@ -17,6 +19,9 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
     max_page_size: int = 100
+
+    # Comma-separated list of allowed CORS origins
+    cors_origins: str = "http://localhost:3000"
 
     # JWT
     secret_key: str = _INSECURE_DEFAULT
@@ -31,8 +36,9 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
 
-    class Config:
-        env_file = ".env"
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache()

@@ -79,6 +79,14 @@ def test_overqualified_slight_penalty():
     assert result.experience_score >= 70.0
 
 
+def test_overqualified_penalty_applies_with_zero_min_experience():
+    c = _candidate(["python"], 15.0)
+    j = _job(["python"], [], min_exp=0.0, max_exp=2.0)
+    result = strategy.score(c, j)
+    assert result.experience_score < 100.0
+    assert result.experience_score >= 70.0
+
+
 def test_preferred_skills_boost():
     c1 = _candidate(["python"], 5.0)
     c2 = _candidate(["python", "docker", "redis"], 5.0)

@@ -53,6 +53,7 @@ class AuthService:
 
         access_token = create_access_token(subject=user.email, role=user.role.value)
         refresh_token_str = await self._create_refresh_token(user.id)
+        await self.db.commit()
         logger.info("Login success user=%s", user.email)
         return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
 
@@ -72,7 +73,7 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
             )
 
-        if db_token.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        if db_token.expires_at < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
             )

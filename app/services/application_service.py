@@ -1,4 +1,5 @@
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -46,7 +47,13 @@ class ApplicationService(BaseService[Application]):
             score_breakdown=score_result.to_dict(),
         )
         self.db.add(application)
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            raise DuplicateException(
+                "Application", "candidate_id+job_id", f"{data.candidate_id}+{data.job_id}"
+            )
         # Re-fetch with relationships eagerly loaded so serialization works
         result = await self.db.execute(
             select(Application)
@@ -68,7 +75,12 @@ class ApplicationService(BaseService[Application]):
     # ------------------------------------------------------------------
 
     async def update_status(self, id: int, data: ApplicationUpdate) -> Application:
-        app = await self.get_by_id(id)
+        result = await self.db.execute(
+            select(Application)
+            .options(selectinload(Application.candidate), selectinload(Application.job))
+            .where(Application.id == id)
+        )
+        app = result.scalar_one_or_none()
         if not app:
             raise NotFoundException("Application", id)
 
@@ -76,12 +88,12 @@ class ApplicationService(BaseService[Application]):
             setattr(app, field, value)
 
         await self.db.commit()
-        result = await self.db.execute(
-            select(Application)
-            .options(selectinload(Application.candidate), selectinload(Application.job))
-            .where(Application.id == id)
-        )
-        return result.scalar_one()
+        # `updated_at` is a server-side onupdate=func.now() default, so it's left
+        # stale on this instance after commit — refresh just that column rather
+        # than re-querying the whole row (which would reintroduce the round trip
+        # this fix is meant to remove).
+        await self.db.refresh(app, attribute_names=["updated_at"])
+        return app
 
     # ------------------------------------------------------------------
     # Ranked listing for a job
@@ -131,8 +143,17 @@ class ApplicationService(BaseService[Application]):
 
         ranked = self._scoring.rank_candidates(candidates, job)
 
+        candidate_ids = [c.id for c, _ in ranked]
+        existing_result = await self.db.execute(
+            select(Application).where(
+                Application.job_id == data.job_id,
+                Application.candidate_id.in_(candidate_ids),
+            )
+        )
+        existing_by_cid = {a.candidate_id: a for a in existing_result.scalars().all()}
+
         for candidate, score_result in ranked:
-            app = await self._get_existing(candidate.id, data.job_id)
+            app = existing_by_cid.get(candidate.id)
             if app:
                 app.match_score = score_result.total_score
                 app.score_breakdown = score_result.to_dict()

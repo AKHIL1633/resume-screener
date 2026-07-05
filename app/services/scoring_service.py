@@ -110,12 +110,12 @@ class WeightedScoringStrategy(ScoringStrategy):
 
     @staticmethod
     def _experience_score(years: float, min_years: float, max_years: float | None) -> float:
-        if min_years == 0:
-            return 100.0
         if years >= min_years:
-            if max_years and years > max_years:
+            if max_years is not None and years > max_years:
                 # Slightly overqualified — small penalty (minimum 70)
                 return max(70.0, 100.0 - (years - max_years) * 5)
+            return 100.0
+        if min_years == 0:
             return 100.0
         return round((years / min_years) * 100, 2)
 

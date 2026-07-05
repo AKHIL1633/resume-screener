@@ -1,4 +1,4 @@
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, bindparam, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DuplicateException, NotFoundException
@@ -54,12 +54,20 @@ class CandidateService(BaseService[Candidate]):
             query = query.where(Candidate.years_of_experience >= min_experience)
             count_query = count_query.where(Candidate.years_of_experience >= min_experience)
 
-        # DB-level JSON text search: cast the JSON column to string and look for
-        # the quoted skill name (e.g. `"python"`) to avoid false-prefix matches.
+        # DB-level JSON skill search. On SQLite/PostgreSQL the JSON column casts
+        # to text cleanly, so a quoted-substring ILIKE avoids false-prefix matches.
+        # Oracle stores JSON as CLOB — a text cast either fails or forces a full
+        # table scan there, so JSON_EXISTS is used instead (Oracle 12c+).
+        dialect = self.db.bind.dialect.name if self.db.bind else "sqlite"
         if skills:
             for skill in skills:
-                pattern = f'%"{skill.lower()}"%'
-                condition = cast(Candidate.skills, String).ilike(pattern)
+                if dialect == "oracle":
+                    condition = text(
+                        'JSON_EXISTS(skills, \'$[*]?(@ == $skill)\' PASSING :skill_val AS "skill")'
+                    ).bindparams(bindparam("skill_val", value=skill.lower(), type_=String))
+                else:
+                    pattern = f'%"{skill.lower()}"%'
+                    condition = cast(Candidate.skills, String).ilike(pattern)
                 query = query.where(condition)
                 count_query = count_query.where(condition)
 

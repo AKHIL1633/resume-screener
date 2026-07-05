@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_admin, get_current_user
 from app.core.exceptions import DuplicateException, NotFoundException
 from app.core.logging_config import logger
-from app.database import get_db
+from app.database import AsyncSessionLocal, get_db
 from app.models.user import User
 from app.schemas.application import (
     ApplicationCreate,
@@ -94,11 +94,12 @@ async def bulk_score(
     """
 
     async def _run():
-        try:
-            count = await ApplicationService(db).bulk_score(data)
-            logger.info("Bulk score done: %d results for job=%d", count, data.job_id)
-        except Exception as exc:
-            logger.error("Bulk score failed for job=%d: %s", data.job_id, exc, exc_info=True)
+        async with AsyncSessionLocal() as new_db:
+            try:
+                count = await ApplicationService(new_db).bulk_score(data)
+                logger.info("Bulk score done: %d results for job=%d", count, data.job_id)
+            except Exception as exc:
+                logger.error("Bulk score failed for job=%d: %s", data.job_id, exc, exc_info=True)
 
     background_tasks.add_task(_run)
     return {"message": "Bulk scoring started", "job_id": data.job_id}
