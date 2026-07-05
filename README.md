@@ -10,6 +10,21 @@ A production-quality Python backend that automatically scores and ranks candidat
 
 ---
 
+## Highlights
+
+What this project demonstrates for a Python backend role:
+
+- **Async Python at the core** — FastAPI + SQLAlchemy 2.0 async ORM, not just sync views bolted onto async routes
+- **Real auth, not a toy example** — JWT access/refresh rotation, hashed opaque refresh tokens, role-based access control
+- **Tested** — 35 pytest-asyncio tests (service-layer unit tests + API integration tests), enforced in CI
+- **CI/CD** — GitHub Actions matrix across Python 3.11/3.12, ruff lint, Docker build verification
+- **Schema managed properly** — Alembic migrations versioned in git, no `create_all()` in production
+- **Applied OOP/design patterns** — Strategy + Factory for scoring, generic `BaseService[T]`, dependency injection throughout
+- **Containerized** — multi-stage Docker build, non-root user, healthcheck, one-command `docker-compose up`
+- **Full-stack context** — React/TypeScript frontend included, showing comfort working across the API boundary
+
+---
+
 ## Features
 
 - **JWT Authentication** — register, login, access + refresh token pair, role-based access (admin / recruiter / viewer)
