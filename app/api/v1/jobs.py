@@ -12,7 +12,9 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
 @router.post("/", response_model=JobResponse, status_code=201, summary="Create a job posting")
-async def create_job(data: JobCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def create_job(
+    data: JobCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)
+):
     return await JobService(db).create(data)
 
 
@@ -33,7 +35,9 @@ async def get_active_jobs(db: AsyncSession = Depends(get_db), _: User = Depends(
 
 
 @router.get("/{job_id}", response_model=JobResponse, summary="Get a job by ID")
-async def get_job(job_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def get_job(
+    job_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)
+):
     job = await JobService(db).get_by_id(job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -41,7 +45,12 @@ async def get_job(job_id: int, db: AsyncSession = Depends(get_db), _: User = Dep
 
 
 @router.put("/{job_id}", response_model=JobResponse, summary="Update a job posting")
-async def update_job(job_id: int, data: JobUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_job(
+    job_id: int,
+    data: JobUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     try:
         return await JobService(db).update(job_id, data)
     except NotFoundException as exc:
@@ -49,7 +58,9 @@ async def update_job(job_id: int, data: JobUpdate, db: AsyncSession = Depends(ge
 
 
 @router.delete("/{job_id}", status_code=204, summary="Delete a job posting (admin only)")
-async def delete_job(job_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)):
+async def delete_job(
+    job_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_admin)
+):
     deleted = await JobService(db).delete(job_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")

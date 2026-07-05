@@ -1,4 +1,4 @@
-# ResumeIQ — AI-Powered Resume Screening API
+# ResumeIQ — Automated Resume Screening & Ranking API
 
 ![CI](https://github.com/AKHIL1633/resume-screener/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)

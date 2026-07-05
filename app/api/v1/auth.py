@@ -11,7 +11,9 @@ from app.services.auth_service import AuthService
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=201, summary="Register a new user")
+@router.post(
+    "/register", response_model=UserResponse, status_code=201, summary="Register a new user"
+)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     try:
         return await AuthService(db).register(data)

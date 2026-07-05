@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 
-from sqlalchemy import Enum, Float, Integer, JSON, String, Text
+from sqlalchemy import JSON, Enum, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -26,7 +26,9 @@ class Job(Base, TimestampMixin):
     preferred_skills: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     min_experience_years: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     max_experience_years: Mapped[float | None] = mapped_column(Float)
-    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.ACTIVE, nullable=False)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus), default=JobStatus.ACTIVE, nullable=False
+    )
 
     applications: Mapped[list[Application]] = relationship(  # noqa: F821
         "Application", back_populates="job", cascade="all, delete-orphan"

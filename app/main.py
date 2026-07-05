@@ -12,7 +12,8 @@ from slowapi.util import get_remote_address
 from app.api.v1.router import router
 from app.config import _INSECURE_DEFAULT, get_settings
 from app.core.logging_config import logger
-from app.database import AsyncSessionLocal as async_session_maker, init_db
+from app.database import AsyncSessionLocal as async_session_maker
+from app.database import init_db
 
 settings = get_settings()
 
@@ -38,7 +39,7 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description=(
-        "**ResumeIQ** — AI-powered resume screening and candidate ranking system.\n\n"
+        "**ResumeIQ** — automated resume screening and candidate ranking system.\n\n"
         "Automatically scores candidates against job requirements using a weighted "
         "algorithm that considers skills, experience, and keyword density."
     ),
@@ -69,7 +70,7 @@ async def request_logging_middleware(request: Request, call_next):
     elapsed_ms = (time.perf_counter() - start) * 1000
     response.headers["X-Request-ID"] = request_id
     logger.info(
-        "%s %s → %d (%.1f ms) [%s]",
+        "%s %s -> %d (%.1f ms) [%s]",
         request.method,
         request.url.path,
         response.status_code,
@@ -81,7 +82,9 @@ async def request_logging_middleware(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
+    logger.error(
+        "Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True
+    )
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
@@ -92,6 +95,7 @@ app.include_router(router)
 @app.get("/health", tags=["Health"], summary="Health check with DB ping")
 async def health_check():
     from sqlalchemy import text
+
     try:
         async with async_session_maker() as session:
             await session.execute(text("SELECT 1"))

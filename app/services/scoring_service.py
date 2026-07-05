@@ -14,9 +14,9 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from typing import ClassVar
 
+from app.core.logging_config import logger
 from app.models.candidate import Candidate
 from app.models.job import Job
-from app.core.logging_config import logger
 
 
 @dataclass
@@ -38,10 +38,10 @@ class ScoreResult:
 # Strategy ABC
 # ---------------------------------------------------------------------------
 
+
 class ScoringStrategy(ABC):
     @abstractmethod
-    def score(self, candidate: Candidate, job: Job) -> ScoreResult:
-        ...
+    def score(self, candidate: Candidate, job: Job) -> ScoreResult: ...
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +81,9 @@ class WeightedScoringStrategy(ScoringStrategy):
 
         req_score = (len(matched_req) / len(req) * 100) if req else 100.0
         pref_score = (len(matched_pref) / len(pref) * 100) if pref else 100.0
-        exp_score = self._experience_score(candidate.years_of_experience, job.min_experience_years, job.max_experience_years)
+        exp_score = self._experience_score(
+            candidate.years_of_experience, job.min_experience_years, job.max_experience_years
+        )
         kw_score = self._keyword_score(candidate.resume_text, job.description, job.required_skills)
 
         total = (
@@ -123,11 +125,15 @@ class WeightedScoringStrategy(ScoringStrategy):
             return 50.0
 
         resume_lower = resume_text.lower()
-        keywords = WeightedScoringStrategy._extract_keywords(job_desc) | {s.lower() for s in required_skills}
+        keywords = WeightedScoringStrategy._extract_keywords(job_desc) | {
+            s.lower() for s in required_skills
+        }
         if not keywords:
             return 50.0
 
-        matched = sum(1 for kw in keywords if re.search(r"\b" + re.escape(kw) + r"\b", resume_lower))
+        matched = sum(
+            1 for kw in keywords if re.search(r"\b" + re.escape(kw) + r"\b", resume_lower)
+        )
         return round(matched / len(keywords) * 100, 2)
 
     @staticmethod
@@ -140,6 +146,7 @@ class WeightedScoringStrategy(ScoringStrategy):
 # Factory
 # ---------------------------------------------------------------------------
 
+
 class ScoringServiceFactory:
     _registry: ClassVar[dict[str, type[ScoringStrategy]]] = {
         "weighted": WeightedScoringStrategy,
@@ -149,7 +156,9 @@ class ScoringServiceFactory:
     def create(cls, strategy: str = "weighted") -> ScoringStrategy:
         klass = cls._registry.get(strategy)
         if klass is None:
-            raise ValueError(f"Unknown scoring strategy '{strategy}'. Available: {list(cls._registry)}")
+            raise ValueError(
+                f"Unknown scoring strategy '{strategy}'. Available: {list(cls._registry)}"
+            )
         return klass()
 
     @classmethod
@@ -161,6 +170,7 @@ class ScoringServiceFactory:
 # Public facade
 # ---------------------------------------------------------------------------
 
+
 class ScoringService:
     def __init__(self, strategy: str = "weighted") -> None:
         self._strategy = ScoringServiceFactory.create(strategy)
@@ -168,9 +178,11 @@ class ScoringService:
 
     def score_candidate(self, candidate: Candidate, job: Job) -> ScoreResult:
         result = self._strategy.score(candidate, job)
-        logger.debug("score candidate=%d job=%d → %.1f", candidate.id, job.id, result.total_score)
+        logger.debug("score candidate=%d job=%d -> %.1f", candidate.id, job.id, result.total_score)
         return result
 
-    def rank_candidates(self, candidates: list[Candidate], job: Job) -> list[tuple[Candidate, ScoreResult]]:
+    def rank_candidates(
+        self, candidates: list[Candidate], job: Job
+    ) -> list[tuple[Candidate, ScoreResult]]:
         scored = [(c, self._strategy.score(c, job)) for c in candidates]
         return sorted(scored, key=lambda pair: pair[1].total_score, reverse=True)
